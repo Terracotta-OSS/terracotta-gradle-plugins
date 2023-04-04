@@ -9,6 +9,7 @@ import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.Input;
 import org.gradle.process.ExecSpec;
 import org.gradle.process.internal.ExecException;
+import org.terracotta.build.Utils;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -37,11 +38,19 @@ public abstract class DockerTask extends DefaultTask {
   public abstract Property<String> getDocker();
 
   public String docker(Action<ExecSpec> action) {
-    return execUnder(this, composite(exec -> exec.executable(getDocker().get()), action));
+    return execUnder(this, prepare(action));
   }
 
   public String dockerQuietly(Action<ExecSpec> action) {
-    return execQuietlyUnder(this, composite(exec -> exec.executable(getDocker().get()), action));
+    return execQuietlyUnder(this, prepare(action));
+  }
+
+  private Action<ExecSpec> prepare(Action<ExecSpec> action) {
+    return composite(
+        // On ARM systems (M1 macs), images can only be built and run correctly when using arm images.
+        exec -> exec.environment("DOCKER_DEFAULT_PLATFORM", Utils.DOCKER_PLATFORM),
+        exec -> exec.executable(getDocker().get()),
+        action);
   }
 
   @Input

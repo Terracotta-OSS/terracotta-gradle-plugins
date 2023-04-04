@@ -22,7 +22,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.lang.System.getenv;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 import static org.terracotta.build.OutputUtils.logTo;
 import static org.terracotta.build.OutputUtils.tee;
 
@@ -30,6 +32,8 @@ import static org.terracotta.build.OutputUtils.tee;
  * Collection of utility methods used by both the plugins and the wider build.
  */
 public class Utils {
+
+  public static final String DOCKER_PLATFORM = ofNullable(getenv("DOCKER_DEFAULT_PLATFORM")).orElse("aarch64".equals(System.getProperty("os.arch")) ? "linux/arm64/v8" : "linux/amd64");
 
   public static Action<FileCopyDetails> dropTopLevelDirectories(int count) {
     return fcd -> {
