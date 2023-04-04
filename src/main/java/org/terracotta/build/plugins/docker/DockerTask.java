@@ -20,7 +20,9 @@ import java.util.function.Function;
 
 import static java.lang.Long.parseLong;
 import static java.lang.Math.toIntExact;
+import static java.lang.System.getenv;
 import static java.lang.Thread.sleep;
+import static java.util.Optional.ofNullable;
 import static org.gradle.internal.Actions.composite;
 import static org.terracotta.build.ExecUtils.execQuietlyUnder;
 import static org.terracotta.build.ExecUtils.execUnder;
@@ -37,11 +39,21 @@ public abstract class DockerTask extends DefaultTask {
   public abstract Property<String> getDocker();
 
   public String docker(Action<ExecSpec> action) {
-    return execUnder(this, composite(exec -> exec.executable(getDocker().get()), action));
+    return execUnder(this, prepare(action));
   }
 
   public String dockerQuietly(Action<ExecSpec> action) {
-    return execQuietlyUnder(this, composite(exec -> exec.executable(getDocker().get()), action));
+    return execQuietlyUnder(this, prepare(action));
+  }
+
+  private Action<ExecSpec> prepare(Action<ExecSpec> action) {
+    return composite(
+        // Set BUILDKIT=0 by default for consistency across docker versions
+        // Docker < v23 uses build kit (BUILDKIT=0), but docker >= v23 uses buildx (BUILDKIT=1).
+        // Note: BUILDKIT=0 is deprecated and buildx changes the way to refer to base image.
+        exec -> exec.environment("DOCKER_BUILDKIT", ofNullable(getenv("DOCKER_BUILDKIT")).orElse("0")),
+        exec -> exec.executable(getDocker().get()),
+        action);
   }
 
   @Input
