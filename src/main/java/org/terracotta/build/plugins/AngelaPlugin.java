@@ -18,6 +18,11 @@ import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.testing.base.TestingExtension;
 import org.terracotta.build.PluginUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -48,13 +53,14 @@ public class AngelaPlugin implements Plugin<Project> {
     JvmPluginServices jvmPluginServices = projectServices.get(JvmPluginServices.class);
 
     Provider<Directory> angelaDir = project.getLayout().getBuildDirectory().dir("angela");
+    Provider<Directory> fakeHostDir = project.getLayout().getBuildDirectory();
     Provider<Directory> customKitDir = angelaDir.map(d -> d.dir("custom-tc-db-kit"));
 
     Configuration angela = PluginUtils.createBucket(project, FRAMEWORK_CONFIGURATION_NAME);
     angela.defaultDependencies(defaultDeps -> {
       defaultDeps.add(project.getDependencyFactory().create("org.terracotta", "angela", "[3,)"));
     });
-
+    AngelaPluginExtension angelaPluginExtension = project.getExtensions().create("customHosts", AngelaPluginExtension.class);
     project.getPlugins().withType(JvmTestSuitePlugin.class).configureEach(plugin -> {
       project.getExtensions().configure(TestingExtension.class, testing -> {
         testing.getSuites().withType(JvmTestSuite.class).configureEach(testSuite -> {
@@ -112,6 +118,31 @@ public class AngelaPlugin implements Plugin<Project> {
           } else {
             task.systemProperty("angela.kitInstallationDir", customKitDir.get().getAsFile().getAbsolutePath());
           }
+          if (!angelaPluginExtension.getCustomHosts().get().isEmpty()) {
+            StringBuilder hostNameBuilder = new StringBuilder();
+            String emptySpace = " ";
+            File file = new File(fakeHostDir.get().getAsFile(), "fake-hosts.txt");
+            try {
+              FileOutputStream fileOutputStream = new FileOutputStream(file);
+              angelaPluginExtension.getCustomHosts().get().forEach(host -> {
+                try {
+                  fileOutputStream.write(host.getBytes(StandardCharsets.UTF_8));
+                  fileOutputStream.write(emptySpace.getBytes(StandardCharsets.UTF_8));
+                  hostNameBuilder.append(host);
+                  hostNameBuilder.append(emptySpace);
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
+              });
+            } catch (FileNotFoundException e) {
+              e.printStackTrace();
+            }
+            task.systemProperty("angela.java.opts", "-Djdk.net.hosts.file=" + file.getAbsolutePath() + " -Xms64m -Xmx512m -DIGNITE_UPDATE_NOTIFIER=false");
+            task.systemProperty("jdk.net.hosts.file", file.getAbsolutePath());
+            task.systemProperty("angela.additionalLocalHostnames", hostNameBuilder.toString().strip());
+          } else {
+            task.systemProperty("angela.java.opts", "-Xms64m -Xmx512m -DIGNITE_UPDATE_NOTIFIER=false");
+          }
         }
       });
       task.systemProperty("IGNITE_UPDATE_NOTIFIER", "false");
@@ -121,7 +152,6 @@ public class AngelaPlugin implements Plugin<Project> {
       task.systemProperty("angela.igniteLogging", "false");
       task.systemProperty("angela.java.resolver", "user"); // disable toolchain, trust JAVA_HOME
       task.systemProperty("angela.distribution", requireNonNull(project.property("version")));
-      task.systemProperty("angela.java.opts", "-Xms64m -Xmx512m -DIGNITE_UPDATE_NOTIFIER=false");
     });
   }
 }
