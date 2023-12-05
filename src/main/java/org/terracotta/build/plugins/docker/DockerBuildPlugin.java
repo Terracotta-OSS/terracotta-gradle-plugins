@@ -78,6 +78,7 @@ public class DockerBuildPlugin implements Plugin<Project> {
               (dockerFile, environment) -> new File(environment.getDestinationDir(), dockerFile.getAsFile().getName())));
       build.getImageIdFile().set(imageIdFile);
       build.getMetadata().set(buildExtension.getMetadata());
+      build.getMetadataSkipped().set(buildExtension.getMetadataSkipped());
       build.getBuildArgs().set(buildExtension.getBuildArgs());
     });
 
@@ -205,6 +206,8 @@ public class DockerBuildPlugin implements Plugin<Project> {
     dockerBuild.getMetadata().put("gradle.build.host", getLocalHostName(project));
     dockerBuild.getMetadata().put("gradle.build.dir", project.getRootDir().getAbsolutePath());
     dockerBuild.getMetadata().put("gradle.build.project", project.getPath());
+
+    dockerBuild.getMetadataSkipped().convention(false);
   }
 
   public Object limitedEval(Object version, DockerExtension extension, String expression) {

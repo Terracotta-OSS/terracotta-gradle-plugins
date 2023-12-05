@@ -4,6 +4,7 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
@@ -52,9 +53,11 @@ public abstract class DockerBuild extends DockerTask {
       spec.args("build",
               "--file", getDockerfile().get().getAsFile().getAbsolutePath(),
               "--iidfile", getImageIdFile().get().getAsFile().getAbsolutePath());
-      spec.args(getMetadata().get().entrySet().stream()
-              .flatMap(e -> of("--label", e.getKey() + "=" + e.getValue()))
-              .toArray());
+      if(!getMetadataSkipped().getOrElse(false)) {
+        spec.args(getMetadata().get().entrySet().stream()
+            .flatMap(e -> of("--label", e.getKey() + "=" + e.getValue()))
+            .toArray());
+      }
       spec.args(getBuildArgs().getOrElse(emptyMap()).entrySet().stream()
           .flatMap(e -> of("--build-arg", e.getKey() + "=" + e.getValue()))
           .toArray());
@@ -73,6 +76,9 @@ public abstract class DockerBuild extends DockerTask {
 
   @Input
   public abstract MapProperty<String, String> getMetadata();
+
+  @Input
+  public abstract Property<Boolean> getMetadataSkipped();
 
   @Input
   public abstract MapProperty<String, String> getBuildArgs();
