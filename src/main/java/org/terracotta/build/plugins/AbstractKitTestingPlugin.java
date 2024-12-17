@@ -111,6 +111,10 @@ public abstract class AbstractKitTestingPlugin implements Plugin<Project> {
             fcd.exclude();
           }
         });
+        spec.filesMatching("**/*.jar", fcd -> {
+          // We can safely exclude JAR duplicates as our dependency strategy is fail on conflict
+          fcd.setDuplicatesStrategy(DuplicatesStrategy.EXCLUDE);
+        });
       });
     });
 
