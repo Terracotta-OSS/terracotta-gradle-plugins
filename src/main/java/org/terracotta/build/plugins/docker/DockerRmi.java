@@ -26,6 +26,9 @@ import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Docker '{@code docker rmi}' task.
+ */
 public abstract class DockerRmi extends DockerTask {
 
   public DockerRmi() {
@@ -41,12 +44,29 @@ public abstract class DockerRmi extends DockerTask {
     }
   }
 
+  /**
+   * Filters for the images to remove, as defined by the docker CLI.
+   *
+   * @return the image filters
+   */
   @Input
   public abstract ListProperty<String> getFilters();
 
+  /**
+   * Arguments for `rmi` command.
+   *
+   * @return `rmi` arguments
+   */
   @Input
   public abstract ListProperty<String> getArguments();
 
+  /**
+   * Metadata mappings to filter for when removing images.
+   * <p>
+   * These mappings are converted to filters of the form: {@code label=<key>=<value>}.
+   *
+   * @return metadata values to filter for
+   */
   @Input
   public abstract MapProperty<String, String> getMetadata();
 }
