@@ -145,6 +145,17 @@ public class ToolPlugin implements Plugin<Project> {
       }));
     });
 
+    project.getTasks().withType(CreateToolScripts.class).configureEach( t -> {
+      t.getOutputDir().convention(t.getToolName().zip(project.getLayout().getBuildDirectory().dir("scripts"), (toolName, dir) -> dir.dir(toolName)));
+
+      t.getUnixTemplate().convention(toolExtension.getUnixTemplate());
+      t.getWindowsTemplate().convention(toolExtension.getWindowsTemplate());
+
+      Provider<String> jarName = toolExtension.getJar().flatMap(jar -> jar.getArchiveFile().map(f -> f.getAsFile().getName()));
+      Provider<Path> fromRootJarPath = toolExtension.getLibDirectory().zip(jarName, (path, name) -> Paths.get(path).resolve(name));
+      t.getJarPath().convention(toolExtension.getBinDirectory().zip(fromRootJarPath, (bin, jar) -> stream(Paths.get(bin).relativize(jar).spliterator(), false).map(Path::toString).collect(toList())));
+    });
+
     Provider<CreateToolScripts> scriptsTask = project.getTasks().register("generateToolScripts", CreateToolScripts.class, t -> {
       t.getToolName().convention(toolExtension.getName());
       t.getOutputDir().convention(project.getLayout().getBuildDirectory().dir("scripts"));
