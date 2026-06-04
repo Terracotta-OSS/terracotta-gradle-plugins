@@ -36,6 +36,7 @@ import org.gradle.api.services.ServiceReference;
 import org.gradle.api.specs.Specs;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
@@ -63,6 +64,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
@@ -111,6 +114,7 @@ public class CopyrightPlugin implements Plugin<Project> {
               Pattern.compile("(?<declaration>[Cc]opyright(?:\\h+(?:\\([Cc]\\)|\\u00a9))?)\\h+(?<years>(?:(?:\\d{4}\\h*-\\h*)?\\d{4},\\h+)*(?:\\d{4}\\h*-\\h*)?(?<end>\\d{4}))\\h+(?<entity>.*?)")
       ));
       task.getEndYear().convention(matcher -> parseInt(matcher.group("end")));
+      task.getEntity().convention(matcher -> matcher.group("entity"));
     });
 
     TaskProvider<Task> centralTask = project.getTasks().register("copyright", task -> {
@@ -186,8 +190,15 @@ public class CopyrightPlugin implements Plugin<Project> {
     @Input
     public abstract ListProperty<Pattern> getPatterns();
 
+    @Input @Optional
+    public abstract Property<Pattern> getExpectedEntity();
+
     @Internal
     public abstract Property<ToIntFunction<Matcher>> getEndYear();
+
+    @Internal
+    public abstract Property<Function<Matcher, String>> getEntity();
+
 
     private static final Pattern PORCELAIN_Z_STATUS_LINE = Pattern.compile("[ MTADRCU?]{2} (?<file>[^\u0000]+)(?:\u0000(?![ MTADRCU?]{2} )(?<from>[^\u0000]+))?\u0000");
 
@@ -247,10 +258,13 @@ public class CopyrightPlugin implements Plugin<Project> {
     private Set<File> checkFiles(Map<File, Integer> expectedUpdates) {
       List<Pattern> patterns = getPatterns().get();
       ToIntFunction<Matcher> endYear = getEndYear().get();
+      Function<Matcher, String> entity = getEntity().get();
+      Predicate<String> expectedEntity = getExpectedEntity().map(Pattern::asMatchPredicate).getOrElse(e -> true);
 
       return expectedUpdates.entrySet().stream().filter(update -> update.getKey().isFile()).map(update -> {
         try (Stream<String> lines = Files.lines(update.getKey().toPath(), StandardCharsets.UTF_8)) {
-          if (lines.flatMap(line -> patterns.stream().map(p -> p.matcher(line))).filter(Matcher::find).anyMatch(matcher -> update.getValue() <= endYear.applyAsInt(matcher))) {
+          if (lines.flatMap(line -> patterns.stream().map(p -> p.matcher(line))).filter(Matcher::find)
+                  .anyMatch(matcher -> expectedEntity.test(entity.apply(matcher)) && update.getValue() <= endYear.applyAsInt(matcher))) {
             return null;
           } else {
             return update.getKey();
