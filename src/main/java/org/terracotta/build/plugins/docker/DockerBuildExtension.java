@@ -60,6 +60,8 @@ public abstract class DockerBuildExtension {
 
   public abstract MapProperty<String, String> getMetadata();
 
+  public abstract MapProperty<String, String> getTransientMetadata();
+
   public abstract MapProperty<String, String> getBuildArgs();
 
   public abstract RegularFileProperty getDockerReadme();
