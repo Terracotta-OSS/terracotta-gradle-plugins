@@ -102,6 +102,7 @@ public class DockerBuildPlugin implements Plugin<Project> {
               (dockerFile, environment) -> new File(environment.getDestinationDir(), dockerFile.getAsFile().getName())));
       build.getImageIdFile().set(imageIdFile);
       build.getMetadata().set(buildExtension.getMetadata());
+      build.getTransientMetadata().set(buildExtension.getTransientMetadata());
       build.getBuildArgs().set(buildExtension.getBuildArgs());
     });
 
@@ -241,7 +242,7 @@ public class DockerBuildPlugin implements Plugin<Project> {
     dockerBuild.getMetadata().put("gradle.build.project", project.getPath());
 
     dockerBuild.getMetadata().put("org.opencontainers.image.version", buildInfo.getVersion().map(Objects::toString));
-    dockerBuild.getMetadata().put("org.opencontainers.image.created", buildInfo.getBuildTimestampISO8601());
+    dockerBuild.getTransientMetadata().put("org.opencontainers.image.created", buildInfo.getBuildTimestampISO8601());
     dockerBuild.getMetadata().put("org.opencontainers.image.revision", buildInfo.getRevision());
   }
 

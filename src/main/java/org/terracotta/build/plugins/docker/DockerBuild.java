@@ -38,6 +38,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Stream.of;
@@ -69,7 +71,7 @@ public abstract class DockerBuild extends DockerTask {
       spec.args("build",
               "--file", getDockerfile().get().getAsFile().getAbsolutePath(),
               "--iidfile", getImageIdFile().get().getAsFile().getAbsolutePath());
-      spec.args(getMetadata().get().entrySet().stream()
+      spec.args(getAllMetadata().get().entrySet().stream()
               .flatMap(e -> of("--label", e.getKey() + "=" + e.getValue()))
               .toArray());
       spec.args(getBuildArgs().getOrElse(emptyMap()).entrySet().stream()
@@ -90,6 +92,22 @@ public abstract class DockerBuild extends DockerTask {
 
   @Input
   public abstract MapProperty<String, String> getMetadata();
+
+  @Internal
+  public abstract MapProperty<String, String> getTransientMetadata();
+
+  @Internal
+  public final Provider<Map<String, String>> getAllMetadata() {
+    return getMetadata().zip(getTransientMetadata(), (metadata, transientMetadata) -> {
+      Map<String, String> mergedMap = new HashMap<>(metadata);
+      transientMetadata.forEach((k, v) -> {
+        mergedMap.merge(k, v, (a, b) -> {
+          throw new IllegalStateException("Duplicate key " + k);
+        });
+      });
+      return mergedMap;
+    });
+  }
 
   @Input
   public abstract MapProperty<String, String> getBuildArgs();
