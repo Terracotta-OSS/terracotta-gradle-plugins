@@ -225,18 +225,22 @@ public class CopyrightPlugin implements Plugin<Project> {
         return a;
       }).orElseThrow(GradleException::new);
 
-      List<String> baseRefs = Stream.of(git(spec -> spec.args("for-each-ref", "--format=%(refname)", REMOTES_PREFIX)).split("\\R"))
+      Stream<String> baseRefs = Stream.of(git(spec -> spec.args("for-each-ref", "--format=%(refname)", REMOTES_PREFIX)).split("\\R"))
           .filter(ref -> !ref.isBlank())
           .filter(ref -> {
             String remaining = ref.substring(REMOTES_PREFIX.length());
             String branch = remaining.substring(remaining.indexOf('/') + 1);
             return BASE_BRANCH.matcher(branch).matches();
+          });
+      List<Object> revListArgs = Stream.of("--pretty=format:%H %ad %(trailers:key=Copyright-Check,valueonly,separator= )",
+              "--date=format:%Y", "--no-merges", "HEAD", "--not", baseRefs, "--", root)
+          .flatMap(o -> {
+            if (o instanceof Stream<?> s) {
+              return s;
+            } else {
+              return Stream.of(o);
+            }
           }).toList();
-      List<Object> revListArgs = Stream.of(
-          Stream.of("--pretty=format:%H %ad %(trailers:key=Copyright-Check,valueonly,separator= )",
-              "--date=format:%Y", "--no-merges", "HEAD", "--not"),
-          baseRefs.stream(),
-          Stream.of(root)).<Object>flatMap(s -> s).toList();
 
       Map<File, Integer> expectedCopyrightYears = Stream.concat(Stream.of(tryGit(
                               spec -> spec.args("rev-list", "--no-commit-header").args(revListArgs),
