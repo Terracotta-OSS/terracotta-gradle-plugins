@@ -1,6 +1,6 @@
 /*
  * Copyright Terracotta, Inc.
- * Copyright IBM Corp. 2024, 2025
+ * Copyright IBM Corp. 2024, 2026
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,11 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.DependencyScopeConfiguration;
 import org.gradle.api.file.Directory;
-import org.gradle.api.plugins.jvm.JvmTestSuite;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.process.JavaForkOptions;
 import org.gradle.process.internal.JavaForkOptionsFactory;
-import org.gradle.testing.base.TestingExtension;
 
 import javax.inject.Inject;
 import java.util.Collections;
@@ -74,7 +72,7 @@ public abstract class AngelaPlugin extends AbstractKitTestingPlugin {
     NamedDomainObjectProvider<DependencyScopeConfiguration> angela = configurations.dependencyScope(FRAMEWORK_CONFIGURATION_NAME,
         c -> c.defaultDependencies(defaultDeps -> defaultDeps.add(project.getDependencyFactory().create("org.terracotta", "angela", "[3,)"))));
 
-    project.getExtensions().configure(TestingExtension.class, testing -> testing.getSuites().withType(JvmTestSuite.class).configureEach(testSuite -> {
+    project.getExtensions().getByType(KitTestingExtension.class).getSuites().configureEach(testSuite -> {
       configurations.named(testSuite.getSources().getImplementationConfigurationName(), config -> config.extendsFrom(angela.get()));
 
       testSuite.getTargets().configureEach(target -> target.getTestTask().configure(task -> {
@@ -116,6 +114,6 @@ public abstract class AngelaPlugin extends AbstractKitTestingPlugin {
           });
         });
       }));
-    }));
+    });
   }
 }
