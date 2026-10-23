@@ -1,6 +1,6 @@
 /*
  * Copyright Terracotta, Inc.
- * Copyright IBM Corp. 2024, 2025
+ * Copyright IBM Corp. 2024, 2026
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@
 
 package org.terracotta.build.plugins;
 
+import org.gradle.api.DomainObjectSet;
 import org.gradle.api.NamedDomainObjectProvider;
+import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ConfigurationContainer;
@@ -67,6 +69,15 @@ public abstract class AbstractKitTestingPlugin implements Plugin<Project> {
   public void apply(Project project) {
     project.getPlugins().apply(JvmEcosystemPlugin.class);
     project.getPlugins().apply(JvmTestSuitePlugin.class);
+
+    DomainObjectSet<JvmTestSuite> targetSuites = project.getObjects().domainObjectSet(JvmTestSuite.class);
+    project.getExtensions().create(name(), KitTestingExtension.class, targetSuites);
+    project.afterEvaluate(p -> {
+      if (targetSuites.isEmpty()) {
+        NamedDomainObjectSet<JvmTestSuite> allSuites = p.getExtensions().getByType(TestingExtension.class).getSuites().withType(JvmTestSuite.class);
+        targetSuites.addAll(allSuites);
+      }
+    });
 
     ConfigurationContainer configurations = project.getConfigurations();
 
@@ -125,11 +136,10 @@ public abstract class AbstractKitTestingPlugin implements Plugin<Project> {
       }
     }));
 
-    project.getExtensions().configure(TestingExtension.class, testing -> testing.getSuites().withType(JvmTestSuite.class)
-        .configureEach(testSuite -> testSuite.getTargets().configureEach(target -> target.getTestTask()
-            .configure(task -> {
-              task.dependsOn(kitPreparation);
-              task.getInputs().dir(getKitDirectory()).withPropertyName(prefixed("KitDirectory"));
-            }))));
+    targetSuites.configureEach(testSuite -> testSuite.getTargets().configureEach(target -> target.getTestTask()
+        .configure(task -> {
+          task.dependsOn(kitPreparation);
+          task.getInputs().dir(getKitDirectory()).withPropertyName(prefixed("KitDirectory"));
+        })));
   }
 }
