@@ -29,6 +29,7 @@ import org.gradle.api.file.RegularFile;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.plugins.PublishingPlugin;
+import org.gradle.api.tasks.Copy;
 import org.gradle.api.tasks.Sync;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -74,15 +75,19 @@ public class DockerBuildPlugin implements Plugin<Project> {
     TaskProvider<Sync> dockerEnvironment = project.getTasks().register("dockerEnvironment", Sync.class, sync -> {
       sync.setDescription("Assembles the Docker build environment.");
       sync.setGroup(LifecycleBasePlugin.BUILD_GROUP);
-      sync.getInputs().property("projectVersion", (Callable<Object>) () -> project.getVersion().toString());
-      sync.getInputs().property("dockerImageIds", dockerExtension.getImages().all());
 
       sync.into(project.getLayout().getBuildDirectory().dir("docker"));
       sync.from(buildExtension.getContentsDirectory()).with(buildExtension.getContents());
+    });
 
+    TaskProvider<Sync> dockerFile = project.getTasks().register("dockerFile", Sync.class, sync -> {
+      sync.getInputs().property("projectVersion", (Callable<Object>) () -> project.getVersion().toString());
+      sync.getInputs().property("dockerImageIds", dockerExtension.getImages().all());
+
+      sync.into(project.getLayout().getBuildDirectory().dir("docker-file"));
       sync.from(buildExtension.getDockerFile(), spec -> spec.filter(inputLine -> {
         Matcher evalMatches = DOCKERFILE_EVAL_PATTERN.matcher(inputLine);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         while (evalMatches.find()) {
           evalMatches.appendReplacement(sb, limitedEval(project.getVersion(), dockerExtension,
                   "\"${" + evalMatches.group("expression") + "}\"").toString());
@@ -98,8 +103,8 @@ public class DockerBuildPlugin implements Plugin<Project> {
     TaskProvider<DockerBuild> dockerBuild = project.getTasks().register("dockerBuild", DockerBuild.class, build -> {
       build.setDescription("Build Docker images.");
       build.getEnvironment().fileProvider(dockerEnvironment.map(Sync::getDestinationDir));
-      build.getDockerfile().fileProvider(buildExtension.getDockerFile().zip(dockerEnvironment,
-              (dockerFile, environment) -> new File(environment.getDestinationDir(), dockerFile.getAsFile().getName())));
+      build.getDockerfile().fileProvider(buildExtension.getDockerFile().zip(dockerFile,
+              (file, root) -> new File(root.getDestinationDir(), file.getAsFile().getName())));
       build.getImageIdFile().set(imageIdFile);
       build.getMetadata().set(buildExtension.getMetadata());
       build.getTransientMetadata().set(buildExtension.getTransientMetadata());
