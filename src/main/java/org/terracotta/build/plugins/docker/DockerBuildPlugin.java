@@ -48,6 +48,7 @@ import java.util.regex.Pattern;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.regex.Matcher.quoteReplacement;
 import static java.util.stream.Collectors.toList;
 import static org.codehaus.groovy.runtime.DefaultGroovyMethods.plus;
 import static org.terracotta.build.PluginUtils.capitalize;
@@ -89,8 +90,8 @@ public class DockerBuildPlugin implements Plugin<Project> {
         Matcher evalMatches = DOCKERFILE_EVAL_PATTERN.matcher(inputLine);
         StringBuilder sb = new StringBuilder();
         while (evalMatches.find()) {
-          evalMatches.appendReplacement(sb, limitedEval(project.getVersion(), dockerExtension,
-                  "\"${" + evalMatches.group("expression") + "}\"").toString());
+          evalMatches.appendReplacement(sb, quoteReplacement(limitedEval(project.getVersion(), dockerExtension,
+                  "\"${" + evalMatches.group("expression") + "}\"").toString()));
         }
         evalMatches.appendTail(sb);
 
